@@ -9,11 +9,11 @@ import pandas as pd
 import datetime as dt 
 
 
-engine=create_engine("sqlite://hawaii.sqlite")
+engine=create_engine("sqlite:///hawaii.sqlite")
 Base=automap_base()
-Base.prepare(engine, reflect-True)
+Base.prepare(engine, reflect=True)
 
-Measurment = Base.classes.measurement
+Measurement = Base.classes.measurement
 Station = Base.classes.station
 session = Session(engine)
 
@@ -27,21 +27,20 @@ def welcome():
         f"/api/v1.0/precipitation</br>"
         f"/api/v1.0/stations</br>"
         f"/api/v1.0/tobs</br>"
-        f"/api/v1.0/<start></br>"
-        f"/api/v1.0/<start>/<end>"
+        f"/api/v1.0/starting_day</br>"
+        f"/api/v1.0/trip_duration"
     )
 
-@app.route("/api/v1.0/precipitaion")
+@app.route("/api/v1.0/precipitation")
 def precipitaion():
-    one_year_query="08-23-2016"
-    precipitations=session.query(Measurement.date, Measurement.prcp).filter(Measurement.date>=one_year_query).order_by(Measurement.date)
+    precipitations=session.query(Measurement.date, Measurement.prcp).filter(Measurement.date>='2016-08-23').order_by(Measurement.date)
     session.close()
-    prcp_data=list(np.ravel(precipitaions))
+    
     all_prcp=[]
-    for prcps in precipitations:
+    for date, prcp in precipitations:
         prcp_dictionary={}
-        prcp_dictionary["date"]=date 
-        prcp_dictionary["prcp"]=prcp 
+        prcp_dictionary["date"]=date
+        prcp_dictionary["prcp"]=prcp
         all_prcp.append(prcp_dictionary)
     return jsonify(all_prcp)
 
@@ -54,26 +53,43 @@ def stations():
 @app.route("/api/v1.0/tobs")
 def temperature():
     annual_tobs=[]
-    tobs_data=session.query(Measurement.tobs).filter(Measurement.date >= one_year_query).all()
+    tobs_data=session.query(Measurement.tobs).filter(Measurement.date >= '2016-08-23').all()
     annual_tobs=list(np.ravel(tobs_data))
     return jsonify(annual_tobs)
 
-@app.route("/api/v1.0/<start>")
-def start(start):
-    date_start = dt.strptime(start, '%y-%m-%d') #parse out the year month and day
-    TMIN=session.query(func.min(Measurement.tobs)).filter(Measurement.date >= date_start).all()
-    TAVG=session.query(func.avg(Measurement.tobs)).filter(Measurement.date >= date_start).all()
-    TMAX=session.query(func.max(Measurement.tobs)).filter(Measurement.date >= date_start).all()
-    start_data=[{"Minimum Temp": TMIN}, {"Average Temp": TAVG}, {"Maximum Temp": TMAX}]
-    return jsonify(start_data)
+@app.route("/api/v1.0/starting_day")
+def start():
+    date_start = '2011-02-28'
+    t_details = session.query(Measurement.date, func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).filter(Measurement.date >= date_start)
 
-@app.route("/api/v1.0/<start>/<end>")
-def start_end(start, end):
-    date_start = dt.strptime(start, '%y-%m-%d')
-    date_end = dt.strptime(end, '%y-%m-%d')
-    TMIN=session.query(func.min(Measurement.tobs)).filter(Measurement.date.between(date_start, date_end).all()
-    TAVG=session.query(func.avg(Measurement.tobs)).filter(Measurement.date.between(date_start, date_end).all()
-    TMAX=session.query(func.max(Measurement.tobs)).filter(Measurement.date.between(date_start, date_end).all()
+    all_temps=[]
+    for date, tmin, tavg, tmax in t_details:
+        temp_dictionary={}
+        temp_dictionary["Date"]=date
+        temp_dictionary["Min T"]=tmin
+        temp_dictionary["Avg T"]=tavg
+        temp_dictionary["Max T"]=tmax
+        all_temps.append(temp_dictionary)
+
+    return jsonify(all_temps)
+
+@app.route("/api/v1.0/trip_duration")
+def start_end():
+    date_start = '2011-02-28'
+    date_end = '2011-03-05'
+    t_details = session.query(Measurement.date, func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).filter(Measurement.date.between(date_start, date_end))
+
+    all_temps=[]
+    for date, tmin, tavg, tmax in t_details:
+        temp_dictionary={}
+        temp_dictionary["Date"]=date
+        temp_dictionary["Min T"]=tmin
+        temp_dictionary["Avg T"]=tavg
+        temp_dictionary["Max T"]=tmax
+        all_temps.append(temp_dictionary)
+
+    return jsonify(all_temps)
+
 
 if __name__ == '__main__':
-    app.run(degug=True)
+    app.run(debug=True)
